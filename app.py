@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template_string
-import ytsr
+from youtubesearchpython import VideosSearch # ytsrの代わりにyoutube-search-pythonを使用
 import os
 
 # Flaskアプリケーションの初期化
@@ -53,7 +53,7 @@ def index():
 def search():
     """
     検索ルート: /search?q={query}
-    URLのクエリパラメータ 'q' を使ってytsr検索を実行します。
+    URLのクエリパラメータ 'q' を使ってyoutube-searchを実行します。
     """
     # URLから 'q' パラメータの値（検索キーワード）を取得
     query = request.args.get('q', default='', type=str).strip()
@@ -61,13 +61,23 @@ def search():
     search_results = []
     
     if query:
-        print(f"🍊 ytsrで '{query}' を検索中...")
+        print(f"🍊 youtube-searchで '{query}' を検索中...")
         try:
-            # ytsr.search()で検索を実行 (例: 上位10件まで取得)
-            results = ytsr.search(query, max_results=10)
-            search_results = results
+            # 1. VideosSearchオブジェクトを作成し、検索を実行 (limit=10で上位10件)
+            videosSearch = VideosSearch(query, limit=10) 
+            results = videosSearch.result() # 検索結果を取得
+            
+            # 2. 検索結果をFlaskテンプレートに合う辞書形式に変換
+            for item in results.get('result', []):
+                search_results.append({
+                    'title': item.get('title', 'タイトル不明'),
+                    'url': item.get('link', '#'), # 'url'ではなく'link'を使用
+                    'channel': item.get('channel', {}).get('name', 'チャンネル不明'),
+                    'duration': item.get('duration', '時間不明'),
+                })
+
         except Exception as e:
-            # ytsrの仕様変更などでエラーが出た場合に備える
+            # 検索中にエラーが発生した場合
             print(f"検索中にエラーが発生しました: {e}")
             search_results = []
     
@@ -79,7 +89,7 @@ def search():
     )
 
 if __name__ == '__main__':
-    # RenderやVercelでは環境変数からポートを取得してGunicornが実行しますが、
     # ローカル開発用にポート5000で実行します。
     port = int(os.environ.get("PORT", 5000))
+    # Renderで実行されるgunicornとは異なり、開発環境ではデバッグモードを有効にします。
     app.run(host='0.0.0.0', port=port, debug=True)
