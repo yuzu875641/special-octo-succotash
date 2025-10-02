@@ -1,0 +1,17 @@
+version: "1"
+
+services:
+  - type: web
+    name: yuzutube-search
+    runtime: python
+    
+    # Renderは'requirements.txt'を自動で検出してインストールしますが、
+    # 明示的にコマンドを記述しても構いません
+    buildCommand: "pip install -r requirements.txt"
+    
+    # Gunicornを使ってFlaskアプリ（app.pyの'app'インスタンス）を起動
+    startCommand: "gunicorn app:app" 
+
+    envVars:
+      - key: FLASK_ENV
+        value: production
