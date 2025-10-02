@@ -1,4 +1,13 @@
-Flask
-youtube-search-python
-gunicorn
-beautifulsoup4 
+{
+  "name": "yuzutube-nodejs-search",
+  "version": "1.0.0",
+  "description": "YouTube search using youtubei.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "youtubei.js": "^15.1.1"
+  }
+}
