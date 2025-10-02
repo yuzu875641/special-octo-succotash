@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template_string
-from youtubesearchpython import VideosSearch # 安定したyoutube-search-pythonを使用
+from youtube-search-python import VideosSearch # 安定したyoutube-search-pythonを使用
 import os
 
 # Flaskアプリケーションの初期化
