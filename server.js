@@ -21,7 +21,7 @@ async function initInnertube() {
 
 // --- HTML テンプレートの定義 ---
 
-// 修正: queryを引数として受け取るように変更しました。
+// 修正: queryを引数として受け取るように変更しました
 const HTML_HEAD = (title, query = '') => `
 <!doctype html>
 <html lang="ja">
@@ -93,7 +93,7 @@ function renderSearchHtml(query, results, error) {
     const errorDisplay = error ? `<p style="color: red;">${error}</p>` : '';
 
     return `
-    ${HTML_HEAD("検索結果", query)} // 修正: queryを渡す
+    ${HTML_HEAD("検索結果", query)} // 修正箇所: queryを渡します
     ${query ? `<h1>「${query}」の検索結果</h1>` : ''}
     ${errorDisplay}
     ${resultsHtml}
@@ -128,7 +128,7 @@ function renderWatchHtml(videoTitle, videoId, relatedVideos) {
         : `<p>関連動画は見つかりませんでした。</p>`;
 
     return `
-    ${HTML_HEAD(videoTitle, emptyQuery)} // 修正: 空文字列を渡す
+    ${HTML_HEAD(videoTitle, emptyQuery)} // 修正箇所: emptyQuery (空文字列) を渡します
     <h1>${videoTitle}</h1>
     <iframe class="video-player" 
         src="${embedUrl}" 
@@ -161,7 +161,7 @@ app.get('/', async (req, res) => {
             
             search_results = search_data.videos
                 .filter(video => video.title) 
-                .slice(0, 10) 
+                .slice(0, 40) 
                 .map(video => {
                     const thumbnails = video.thumbnails || [];
                     const thumbnail_url = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : '';
@@ -177,12 +177,10 @@ app.get('/', async (req, res) => {
             
         } catch (error) {
             console.error('youtubei.js Search error:', error);
-            // ユーザーフレンドリーなエラーメッセージ
             error_message = `検索中にエラーが発生しました。時間を置いて再度お試しください。`; 
         }
     }
 
-    // 修正された renderSearchHtml を呼び出す
     res.send(renderSearchHtml(query, search_results, error_message));
 });
 
@@ -221,7 +219,6 @@ app.get('/watch', async (req, res) => {
                 });
         }
         
-        // 修正された renderWatchHtml を呼び出す
         res.send(renderWatchHtml(videoTitle, videoId, relatedVideos));
 
     } catch (error) {
@@ -233,7 +230,6 @@ app.get('/watch', async (req, res) => {
 // サーバー起動
 initInnertube().then(() => {
     app.listen(PORT, () => {
-        // Render環境では10000番ポートで実行されることが多いため、ログを修正
         console.log(`Node.js Search Server running on port ${PORT}`); 
     });
 }).catch(err => {
