@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template_string
-from youtubesearchpython import VideosSearch 
+from youtubesearchpython import VideosSearch # 安定したyoutube-search-pythonを使用
 import os
 
 # Flaskアプリケーションの初期化
@@ -8,7 +8,7 @@ app = Flask(__name__)
 # シンプルなHTMLテンプレート
 HTML_TEMPLATE = """
 <!doctype html>
-<title>🍊 yuzutube - 検索結果</title>
+<title>yuzutube - 検索結果</title>
 <style>
     body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
     ul { list-style: none; padding: 0; }
@@ -39,7 +39,7 @@ HTML_TEMPLATE = """
 <h2>新しい検索</h2>
 <form action="/search" method="GET">
     <input type="text" name="q" placeholder="検索キーワードを入力" value="{{ query or '' }}" size="40">
-    <button type="submit">🍊 検索</button>
+    <button type="submit">検索</button>
 </form>
 """
 
