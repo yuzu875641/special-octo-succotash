@@ -2,14 +2,16 @@
   "version": 2,
   "builds": [
     {
-      "src": "app.py",
-      "use": "@vercel/python"
+      # server.js を Vercel の Node.js ランタイムでサーバーレス関数としてビルド
+      "src": "server.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
+      # すべてのトラフィック（ルートとクエリパラメータ）を server.js にルーティング
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "server.js"
     }
   ]
 }
