@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template_string
-from youtubesearchpython import VideosSearch # ytsrの代わりにyoutube-search-pythonを使用
+from youtubesearchpython import VideosSearch 
 import os
 
 # Flaskアプリケーションの初期化
