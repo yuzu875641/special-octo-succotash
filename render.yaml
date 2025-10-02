@@ -1,17 +1,15 @@
-version: "1"
-
 services:
+  # サービスタイプを「Webサービス」として定義
   - type: web
-    name: yuzutube-search
-    runtime: python
-    
-    # Renderは'requirements.txt'を自動で検出してインストールしますが、
-    # 明示的にコマンドを記述しても構いません
-    buildCommand: "pip install -r requirements.txt"
-    
-    # Gunicornを使ってFlaskアプリ（app.pyの'app'インスタンス）を起動
-    startCommand: "gunicorn app:app" 
-
+    name: yuzutube-search-nodejs
+    # ビルドに使う環境（Node.js）を指定
+    env: node
+    # ビルドコマンド（依存関係のインストール）
+    buildCommand: npm install
+    # 起動コマンド（server.jsを実行）
+    startCommand: node server.js
+    # 環境変数 $PORT を Render が自動で設定し、server.jsでそれを受け取ります。
+    # server.jsのPORT設定（process.env.PORT || 3000）に対応しています。
     envVars:
-      - key: FLASK_ENV
-        value: production
+      - key: NODE_VERSION
+        value: 20
