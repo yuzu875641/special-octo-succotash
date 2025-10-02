@@ -14,14 +14,12 @@ let yt;
 
 // Innertubeクライアントの初期化
 async function initInnertube() {
-    // InnerTubeクライアントを作成。検索APIへのアクセスに使用します。
     yt = await Innertube.create();
     console.log('Innertube Client Initialized. 🍊');
 }
 
 // メインルート: 検索フォームと結果の表示を処理
 app.get('/', async (req, res) => {
-    // URLクエリパラメータ 'q' から検索キーワードを取得
     const query = req.query.q ? req.query.q.trim() : '';
     let search_results = [];
     let error_message = null;
@@ -29,13 +27,13 @@ app.get('/', async (req, res) => {
     if (query) {
         console.log(`[SEARCH] Query: ${query}`);
         try {
-            // youtubei.jsの search() メソッドを使用して検索を実行
-            // 'WEB' クライアントタイプを使用
             const search_data = await yt.search(query, { client: 'WEB' });
 
-            // 動画結果のみに絞り込み、必要な情報とサムネイルURLを抽出
+            // 動画結果のみに絞り込み、情報が欠落している結果（undefinedなど）を除外
             search_results = search_data.videos
-                .slice(0, 50) // 上位10件に制限
+                // ★ フィルタリング処理: タイトルが存在する結果のみを抽出
+                .filter(video => video.title) 
+                .slice(0, 10) 
                 .map(video => {
                     // サムネイルは最高画質のもの（リストの末尾）を取得
                     const thumbnails = video.thumbnails || [];
@@ -43,7 +41,6 @@ app.get('/', async (req, res) => {
 
                     return {
                         title: video.title,
-                        // URLは表示しないという要望に対応
                         thumbnail: thumbnail_url, 
                         channel: video.author ? video.author.name : '不明なチャンネル',
                         duration: video.duration ? video.duration.text : '時間不明'
@@ -97,7 +94,7 @@ function renderHtml(query, results, error) {
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>yuzutube - 検索エンジン (Node.js/youtube.js)</title>
+    <title>🍊 yuzutube - 検索エンジン (Node.js/youtube.js)</title>
     <style>
         body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
         ul { list-style: none; padding: 0; }
@@ -115,8 +112,8 @@ function renderHtml(query, results, error) {
     <div class="search-container">
         <form action="/" method="GET">
             <input type="text" name="q" placeholder="検索キーワードを入力" value="${query}" size="40" required>
-            <button type="submit">検索</button>
-        </button>
+            <button type="submit">🍊 検索</button>
+        </form>
     </div>
 
     ${query ? `<h1>「${query}」の検索結果</h1>` : ''}
