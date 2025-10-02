@@ -3,17 +3,14 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// ESモジュールのファイルパス設定
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Render環境ではPORTは自動で設定されるため、process.env.PORTを使用
 const PORT = process.env.PORT || 3000; 
 
 let yt;
 
-// Innertubeクライアントの初期化
 async function initInnertube() {
     yt = await Innertube.create();
     console.log('Innertube Client Initialized. 🍊');
@@ -21,7 +18,6 @@ async function initInnertube() {
 
 // --- HTML テンプレートの定義 ---
 
-// 修正: queryを引数として受け取るように変更しました
 const HTML_HEAD = (title, query = '') => `
 <!doctype html>
 <html lang="ja">
@@ -41,7 +37,6 @@ const HTML_HEAD = (title, query = '') => `
         h1, h2 { border-bottom: 2px solid #ccc; padding-bottom: 10px; }
         .search-container { margin-bottom: 20px; }
         .initial-message { color: #888; text-align: center; padding: 50px; }
-        /* 動画再生ページ用スタイル */
         .video-player { width: 100%; aspect-ratio: 16 / 9; margin-bottom: 20px; }
         .related-video .thumbnail img { width: 160px; }
     </style>
@@ -55,13 +50,11 @@ const HTML_HEAD = (title, query = '') => `
     </div>
 `;
 
-// HTMLテンプレートのフッター
 const HTML_FOOT = `
 </body>
 </html>
 `;
 
-// 検索結果画面のHTMLを生成
 function renderSearchHtml(query, results, error) {
     const resultsHtml = results.length > 0
         ? `
@@ -93,7 +86,7 @@ function renderSearchHtml(query, results, error) {
     const errorDisplay = error ? `<p style="color: red;">${error}</p>` : '';
 
     return `
-    ${HTML_HEAD("検索結果", query)} // 修正箇所: queryを渡します
+    ${HTML_HEAD("検索結果", query)}
     ${query ? `<h1>「${query}」の検索結果</h1>` : ''}
     ${errorDisplay}
     ${resultsHtml}
@@ -102,10 +95,9 @@ function renderSearchHtml(query, results, error) {
     `;
 }
 
-// 動画再生画面のHTMLを生成
 function renderWatchHtml(videoTitle, videoId, relatedVideos) {
     const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}`;
-    const emptyQuery = ''; // 動画再生ページでは検索フォームの値を空にする
+    const emptyQuery = '';
 
     const relatedHtml = relatedVideos.length > 0
         ? `
@@ -128,7 +120,7 @@ function renderWatchHtml(videoTitle, videoId, relatedVideos) {
         : `<p>関連動画は見つかりませんでした。</p>`;
 
     return `
-    ${HTML_HEAD(videoTitle, emptyQuery)} // 修正箇所: emptyQuery (空文字列) を渡します
+    ${HTML_HEAD(videoTitle, emptyQuery)}
     <h1>${videoTitle}</h1>
     <iframe class="video-player" 
         src="${embedUrl}" 
@@ -148,9 +140,7 @@ function renderWatchHtml(videoTitle, videoId, relatedVideos) {
 
 // --- Express ルート定義 ---
 
-// ルート: 検索
 app.get('/', async (req, res) => {
-    // req.query.q からクエリを取得し、trim()して使用
     const query = req.query.q ? req.query.q.trim() : ''; 
     let search_results = [];
     let error_message = null;
@@ -161,7 +151,7 @@ app.get('/', async (req, res) => {
             
             search_results = search_data.videos
                 .filter(video => video.title) 
-                .slice(0, 40) 
+                .slice(0, 10) 
                 .map(video => {
                     const thumbnails = video.thumbnails || [];
                     const thumbnail_url = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : '';
@@ -184,7 +174,6 @@ app.get('/', async (req, res) => {
     res.send(renderSearchHtml(query, search_results, error_message));
 });
 
-// ルート: 動画再生ページ
 app.get('/watch', async (req, res) => {
     const videoId = req.query.v;
     if (!videoId) {
@@ -192,21 +181,27 @@ app.get('/watch', async (req, res) => {
     }
 
     try {
-        // 動画の詳細情報と関連動画を取得
         const info = await yt.getInfo(videoId);
         
-        const videoTitle = info.basic_details.title || '動画タイトル不明';
+        // エラー回避のための防御的チェック
+        const basicDetails = info.basic_details;
+
+        if (!basicDetails) {
+            console.error(`Missing basic_details for video ${videoId}`);
+            // basic_detailsがない場合、情報取得に失敗したとみなし404エラーを返す
+            return res.status(404).send(`動画の情報が見つかりませんでした。Video ID: ${videoId}`);
+        }
+
+        const videoTitle = basicDetails.title || '動画タイトル不明'; 
         const relatedContent = info.related_content;
         let relatedVideos = [];
 
         if (relatedContent && relatedContent.contents) {
-            // 関連動画リストをフィルタリングして整形
             relatedVideos = relatedContent.contents
-                .filter(item => item.video_id) // 動画IDがないものは除外
-                .slice(0, 5) // 5件に制限
+                .filter(item => item.video_id) 
+                .slice(0, 5) 
                 .map(item => {
                     const thumbnails = item.thumbnails || [];
-                    // 最大解像度のサムネイルを使用
                     const thumbnail_url = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : ''; 
                     
                     return {
