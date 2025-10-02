@@ -1,4 +1,4 @@
 Flask
-ytsr
+youtube-search
 gunicorn
 beautifulsoup4 
