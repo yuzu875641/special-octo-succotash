@@ -8,7 +8,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Render環境ではPORTは自動で設定されるため、process.env.PORTを使用
+const PORT = process.env.PORT || 3000; 
 
 let yt;
 
@@ -20,8 +21,8 @@ async function initInnertube() {
 
 // --- HTML テンプレートの定義 ---
 
-// 共通スタイルを含むHTMLヘッダー
-const HTML_HEAD = (title) => `
+// 修正: queryを引数として受け取るように変更しました。
+const HTML_HEAD = (title, query = '') => `
 <!doctype html>
 <html lang="ja">
 <head>
@@ -92,7 +93,7 @@ function renderSearchHtml(query, results, error) {
     const errorDisplay = error ? `<p style="color: red;">${error}</p>` : '';
 
     return `
-    ${HTML_HEAD("検索結果")}
+    ${HTML_HEAD("検索結果", query)} // 修正: queryを渡す
     ${query ? `<h1>「${query}」の検索結果</h1>` : ''}
     ${errorDisplay}
     ${resultsHtml}
@@ -104,6 +105,7 @@ function renderSearchHtml(query, results, error) {
 // 動画再生画面のHTMLを生成
 function renderWatchHtml(videoTitle, videoId, relatedVideos) {
     const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}`;
+    const emptyQuery = ''; // 動画再生ページでは検索フォームの値を空にする
 
     const relatedHtml = relatedVideos.length > 0
         ? `
@@ -126,7 +128,7 @@ function renderWatchHtml(videoTitle, videoId, relatedVideos) {
         : `<p>関連動画は見つかりませんでした。</p>`;
 
     return `
-    ${HTML_HEAD(videoTitle)}
+    ${HTML_HEAD(videoTitle, emptyQuery)} // 修正: 空文字列を渡す
     <h1>${videoTitle}</h1>
     <iframe class="video-player" 
         src="${embedUrl}" 
@@ -148,7 +150,8 @@ function renderWatchHtml(videoTitle, videoId, relatedVideos) {
 
 // ルート: 検索
 app.get('/', async (req, res) => {
-    const query = req.query.q ? req.query.q.trim() : '';
+    // req.query.q からクエリを取得し、trim()して使用
+    const query = req.query.q ? req.query.q.trim() : ''; 
     let search_results = [];
     let error_message = null;
 
@@ -165,7 +168,7 @@ app.get('/', async (req, res) => {
 
                     return {
                         title: video.title,
-                        videoId: video.id, // videoIdを追加
+                        videoId: video.id,
                         thumbnail: thumbnail_url, 
                         channel: video.author ? video.author.name : '不明なチャンネル',
                         duration: video.duration ? video.duration.text : '時間不明'
@@ -174,10 +177,12 @@ app.get('/', async (req, res) => {
             
         } catch (error) {
             console.error('youtubei.js Search error:', error);
-            error_message = `検索中にエラーが発生しました。`;
+            // ユーザーフレンドリーなエラーメッセージ
+            error_message = `検索中にエラーが発生しました。時間を置いて再度お試しください。`; 
         }
     }
 
+    // 修正された renderSearchHtml を呼び出す
     res.send(renderSearchHtml(query, search_results, error_message));
 });
 
@@ -203,7 +208,8 @@ app.get('/watch', async (req, res) => {
                 .slice(0, 5) // 5件に制限
                 .map(item => {
                     const thumbnails = item.thumbnails || [];
-                    const thumbnail_url = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : '';
+                    // 最大解像度のサムネイルを使用
+                    const thumbnail_url = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : ''; 
                     
                     return {
                         title: item.title?.text || 'タイトル不明',
@@ -215,18 +221,20 @@ app.get('/watch', async (req, res) => {
                 });
         }
         
+        // 修正された renderWatchHtml を呼び出す
         res.send(renderWatchHtml(videoTitle, videoId, relatedVideos));
 
     } catch (error) {
         console.error(`Error fetching info for video ${videoId}:`, error);
-        res.status(500).send(`動画の情報を取得できませんでした。Video ID: ${videoId}`);
+        res.status(500).send(`動画の情報を取得できませんでした。`);
     }
 });
 
 // サーバー起動
 initInnertube().then(() => {
     app.listen(PORT, () => {
-        console.log(`Node.js Search Server running on http://localhost:${PORT}`);
+        // Render環境では10000番ポートで実行されることが多いため、ログを修正
+        console.log(`Node.js Search Server running on port ${PORT}`); 
     });
 }).catch(err => {
     console.error('Failed to initialize Innertube and start server:', err);
