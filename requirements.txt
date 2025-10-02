@@ -1,4 +1,4 @@
 Flask
-youtube-search
+youtube-search-python
 gunicorn
 beautifulsoup4 
