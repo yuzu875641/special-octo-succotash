@@ -1,14 +1,14 @@
 {
   "name": "yuzutube-nodejs-search",
   "version": "1.0.0",
-  "description": "YouTube search using youtubei.js",
+  "description": "YouTube search using youtube-sr",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
-    "youtubei.js": "^15.1.1"
+    "youtube-sr": "^4.4.4"
   },
-  "type": "module" 
+  "type": "module"
 }
