@@ -1,7 +1,7 @@
-import { Innertube } from 'youtubei.js';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import YouTube from 'youtube-sr'; // youtube-srをインポート
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,12 +9,26 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000; 
 
-let yt;
+// youtube-srはインスタンス化が不要なため、yt変数は不要
 
-async function initInnertube() {
-    yt = await Innertube.create();
-    console.log('Innertube Client Initialized. 🍊');
+// --- ユーティリティ関数（youtube-sr用に調整） ---
+
+// durationSecを "MM:SS" 形式に変換するヘルパー関数
+function formatDuration(durationSec) {
+    if (!durationSec || isNaN(durationSec)) return '時間不明';
+    const totalSeconds = Number(durationSec);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    const parts = [];
+    if (hours > 0) parts.push(String(hours));
+    parts.push(String(minutes).padStart(hours > 0 ? 2 : 1, '0'));
+    parts.push(String(seconds).padStart(2, '0'));
+    
+    return parts.join(':');
 }
+
 
 // --- HTML テンプレートの定義 ---
 
@@ -140,6 +154,7 @@ function renderWatchHtml(videoTitle, videoId, relatedVideos) {
 
 // --- Express ルート定義 ---
 
+// ルート: 検索
 app.get('/', async (req, res) => {
     const query = req.query.q ? req.query.q.trim() : ''; 
     let search_results = [];
@@ -147,26 +162,29 @@ app.get('/', async (req, res) => {
 
     if (query) {
         try {
-            const search_data = await yt.search(query, { client: 'WEB' });
+            // 修正: YouTube.searchを使用
+            const search_data = await YouTube.search(query, {
+                limit: 10,
+                type: 'video' // 動画のみに限定
+            });
             
-            search_results = search_data.videos
+            search_results = search_data
                 .filter(video => video.title) 
-                .slice(0, 10) 
                 .map(video => {
                     const thumbnails = video.thumbnails || [];
-                    const thumbnail_url = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : '';
+                    const thumbnailUrl = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : '';
 
                     return {
                         title: video.title,
                         videoId: video.id,
-                        thumbnail: thumbnail_url, 
-                        channel: video.author ? video.author.name : '不明なチャンネル',
-                        duration: video.duration ? video.duration.text : '時間不明'
+                        thumbnail: thumbnailUrl, 
+                        channel: video.channel ? video.channel.name : '不明なチャンネル',
+                        duration: formatDuration(video.durationSec)
                     };
                 });
             
         } catch (error) {
-            console.error('youtubei.js Search error:', error);
+            console.error('youtube-sr Search error:', error);
             error_message = `検索中にエラーが発生しました。時間を置いて再度お試しください。`; 
         }
     }
@@ -174,6 +192,7 @@ app.get('/', async (req, res) => {
     res.send(renderSearchHtml(query, search_results, error_message));
 });
 
+// ルート: 動画再生ページ
 app.get('/watch', async (req, res) => {
     const videoId = req.query.v;
     if (!videoId) {
@@ -181,53 +200,55 @@ app.get('/watch', async (req, res) => {
     }
 
     try {
-        const info = await yt.getInfo(videoId);
+        // 修正: YouTube.getVideo()で動画の詳細情報を取得
+        const video = await YouTube.getVideo(`https://www.youtube.com/watch?v=${videoId}`);
         
-        // エラー回避のための防御的チェック
-        const basicDetails = info.basic_details;
-
-        if (!basicDetails) {
-            console.error(`Missing basic_details for video ${videoId}`);
-            // basic_detailsがない場合、情報取得に失敗したとみなし404エラーを返す
+        if (!video || !video.title) {
+            console.error(`Missing details for video ${videoId} via youtube-sr`);
             return res.status(404).send(`動画の情報が見つかりませんでした。Video ID: ${videoId}`);
         }
 
-        const videoTitle = basicDetails.title || '動画タイトル不明'; 
-        const relatedContent = info.related_content;
+        const videoTitle = video.title;
+        
+        // youtube-srは関連動画を直接提供しないため、動画タイトルを使って検索することで代替する
         let relatedVideos = [];
+        try {
+            const relatedSearch = await YouTube.search(videoTitle, {
+                limit: 6, // 検索結果から自分自身を除外する可能性があるため、少し多めに取得
+                type: 'video'
+            });
 
-        if (relatedContent && relatedContent.contents) {
-            relatedVideos = relatedContent.contents
-                .filter(item => item.video_id) 
+            relatedVideos = relatedSearch
+                .filter(item => item.id !== videoId && item.title) // 自分自身とタイトルがないものを除外
                 .slice(0, 5) 
                 .map(item => {
                     const thumbnails = item.thumbnails || [];
-                    const thumbnail_url = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : ''; 
+                    const thumbnailUrl = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : '';
                     
                     return {
-                        title: item.title?.text || 'タイトル不明',
-                        videoId: item.video_id,
-                        thumbnail: thumbnail_url,
-                        channel: item.author?.name || '不明なチャンネル',
-                        duration: item.duration?.text || '時間不明'
+                        title: item.title,
+                        videoId: item.id,
+                        thumbnail: thumbnailUrl,
+                        channel: item.channel ? item.channel.name : '不明なチャンネル',
+                        duration: formatDuration(item.durationSec)
                     };
                 });
+        } catch (relatedError) {
+            console.error('youtube-sr Related Search error:', relatedError);
+            // 関連動画の取得に失敗してもメイン動画の再生は続ける
         }
         
         res.send(renderWatchHtml(videoTitle, videoId, relatedVideos));
 
     } catch (error) {
         console.error(`Error fetching info for video ${videoId}:`, error);
-        res.status(500).send(`動画の情報を取得できませんでした。`);
+        // "動画が見つからない"エラーの場合もあるため、404を返す
+        res.status(404).send(`動画の情報を取得できませんでした。Video ID: ${videoId}`);
     }
 });
 
 // サーバー起動
-initInnertube().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Node.js Search Server running on port ${PORT}`); 
-    });
-}).catch(err => {
-    console.error('Failed to initialize Innertube and start server:', err);
-    process.exit(1);
+// youtube-srはインスタンス化不要のため、initInnertubeを削除し、直接起動
+app.listen(PORT, () => {
+    console.log(`Node.js Search Server running on port ${PORT}`); 
 });
